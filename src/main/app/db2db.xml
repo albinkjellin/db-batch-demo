@@ -1,43 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
-	xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper" xmlns:core="http://www.mulesoft.org/schema/mule/core"
-	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
+	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.5.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="
-http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
 http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd">
-    <data-mapper:config name="list_map__to_list_map_" transformationGraphPath="list_map__to_list_map_.grf" doc:name="list_map__to_list_map_"/>
+	<data-mapper:config name="list_map__to_list_map_"
+		transformationGraphPath="list_map__to_list_map_.grf" doc:name="list_map__to_list_map_" />
 	<batch:job name="db2db" max-failed-records="-1">
 		<batch:threading-profile poolExhaustedAction="WAIT" />
 		<batch:input>
 			<http:inbound-endpoint exchange-pattern="one-way"
 				host="localhost" port="${http.port}" path="triggerbatch" doc:name="/triggerbatch" />
-			<tracking:custom-event event-name="batch.db2db.start" doc:name="batch.db2db.start">
-                <tracking:meta-data key="time" value="#[new Date()]"/>
-            </tracking:custom-event>
-			<db:select config-ref="MySQL_Configuration" doc:name="Get From DB1">
-			
-                <db:parameterized-query><![CDATA[select * from database1;]]></db:parameterized-query>
+			<tracking:custom-event event-name="batch.db2db.start"
+				doc:name="batch.db2db.start">
+				<tracking:meta-data key="time" value="#[new Date()]" />
+			</tracking:custom-event>
+			<db:select config-ref="MySQL_Configuration" doc:name="Get From DB1"
+				streaming="true">
+				<db:parameterized-query><![CDATA[select * from database1;]]></db:parameterized-query>
 			</db:select>
-            <data-mapper:transform config-ref="list_map__to_list_map_" doc:name="List&lt;Map&gt; To List&lt;Map&gt;"/>
+			<data-mapper:transform config-ref="list_map__to_list_map_"
+				doc:name="List&lt;Map&gt; To List&lt;Map&gt;" stream="true" />
 		</batch:input>
 		<batch:process-records>
 			<batch:step name="database2.insert">
 				<batch:set-record-variable variableName="recordId"
 					value="#[payload.id]" doc:name="Store Record Id" />
-
-				<db:insert config-ref="MySQL_Configuration" doc:name="Insert to DB2">
-                    <db:parameterized-query><![CDATA[insert into database2 values(#[payload.id], #[payload.status])]]></db:parameterized-query>
-				</db:insert>
-
+				
+					<batch:commit size="10" doc:name="Batch Commit">
+					<transactional action="BEGIN_OR_JOIN" doc:name="Transactional">
+						<db:insert config-ref="MySQL_Configuration" doc:name="Insert to DB2"
+							bulkMode="true">
+							<db:parameterized-query><![CDATA[insert into database2 values(#[payload.id], #[payload.status])]]></db:parameterized-query>
+						</db:insert>
+						</transactional>
+					</batch:commit>
+				
 
 			</batch:step>
 			<batch:step name="database2.update.sucess">
@@ -59,10 +67,11 @@ http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schem
 			<logger
 				message="#[payload.loadedRecords] Loaded Records #[payload.failedRecords], Failed Records"
 				level="INFO" doc:name="Log Results" />
-				<tracking:custom-event event-name="batch.db2db.start" doc:name="batch.db2db.start">
-                <tracking:meta-data key="time" value="#[new Date()]"/>
-            </tracking:custom-event>
-            <flow-ref name="notification.fanout" doc:name="notification.fanout"/>
+			<tracking:custom-event event-name="batch.db2db.start"
+				doc:name="batch.db2db.start">
+				<tracking:meta-data key="time" value="#[new Date()]" />
+			</tracking:custom-event>
+			<!-- <flow-ref name="notification.fanout" doc:name="notification.fanout"/> -->
 		</batch:on-complete>
 	</batch:job>
 </mule>
