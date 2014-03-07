@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:amqp="http://www.mulesoft.org/schema/mule/amqp" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.5.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amqp/current/mule-amqp.xsd">
+    <flow name="notification.fanout" doc:name="notification.fanout">
+        <all doc:name="All">
+            <logger message="********** Log All Fanout: Number 1 **********" level="INFO" doc:name="Logger"/>
+            <logger message="********** Log All Fanout: Number 2 **********" level="INFO" doc:name="Logger"/>
+            <processor-chain>
+                <logger message="********** Log All Fanout: Number 3 **********" level="INFO" doc:name="Logger"/>
+                <amqp:outbound-endpoint exchangeName="notify" exchangeDurable="true" responseTimeout="10000" exchange-pattern="one-way" doc:name="AMQP"/>
+            </processor-chain>
+        </all>
+    </flow>
+    <flow name="amqp.notify.1" doc:name="amqp.notify.1">
+        <amqp:inbound-endpoint responseTimeout="10000" exchange-pattern="one-way" queueName="notify.1" doc:name="AMQP"/>
+        <logger message="++++++++++ Log AMQP Fanout: Number 1 ++++++++++" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="amqp.notify.2" doc:name="amqp.notify.2">
+        <amqp:inbound-endpoint responseTimeout="10000" exchange-pattern="one-way" queueName="notify.2" doc:name="AMQP"/>
+        <logger message="++++++++++ Log AMQP Fanout: Number 2 ++++++++++" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="amqp.notify.3" doc:name="amqp.notify.3">
+        <amqp:inbound-endpoint responseTimeout="10000" exchange-pattern="one-way" queueName="notify.3" doc:name="AMQP"/>
+        <logger message="++++++++++ Log AMQP Fanout: Number 3 ++++++++++" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>

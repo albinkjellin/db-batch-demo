@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
+	xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.5.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<data-mapper:config name="csv_to_map"
+		transformationGraphPath="csv_to_map.grf" doc:name="csv_to_map" />
+	<batch:job name="file2db" max-failed-records="-1">
+		<batch:input>
+            <file:inbound-endpoint path="/Users/albin/dev/iapps/studio/anypoint_3.5.0_api/db-batch-demo/src/test/resources/csv/in" responseTimeout="10000" doc:name="File"/>
+            <tracking:custom-event event-name="batch.file2db.start" doc:name="batch.file2db.start">
+                <tracking:meta-data key="time" value="#[new Date()]"/>
+            </tracking:custom-event>
+				
+			<data-mapper:transform config-ref="csv_to_map"
+				doc:name="CSV To Map" />
+		</batch:input>
+		<batch:process-records>
+			<batch:step name="db.insert" >
+
+				<db:insert config-ref="MySQL_Configuration" doc:name="Database"
+					bulkMode="true">
+					<db:parameterized-query><![CDATA[insert into database1 (id,status) values(#[payload.id], #[payload.status]);]]></db:parameterized-query>
+				</db:insert>
+
+			</batch:step>
+			<batch:step name="report.errors" accept-policy="ONLY_FAILURES">
+				<logger message="************* UNABLE TO INSERT: #[payload] ************* "
+					level="INFO" doc:name="Logger"/>
+			</batch:step>
+		</batch:process-records>
+		<batch:on-complete>
+			<logger message="END" level="INFO" doc:name="Logger"/>
+			<logger
+				message="Process Summary: #[payload.loadedRecords] Loaded Records #[payload.failedRecords] 
+				Failed Records"
+				level="INFO" doc:name="Log Results" />
+			<tracking:custom-event event-name="batch.file2db.stop" doc:name="batch.file2db.stop">
+                <tracking:meta-data key="time" value="#[new Date()]"/>
+            </tracking:custom-event>
+		</batch:on-complete>
+
+	</batch:job>
+
+</mule>
