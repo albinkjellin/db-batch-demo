@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
+<mule xmlns:jdbc-ee="http://www.mulesoft.org/schema/mule/ee/jdbc"
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
 	xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
 	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
 	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:db="http://www.mulesoft.org/schema/mule/db"
@@ -13,7 +14,8 @@ http://www.springframework.org/schema/beans http://www.springframework.org/schem
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
-http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd">
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.mulesoft.org/schema/mule/ee/jdbc http://www.mulesoft.org/schema/mule/ee/jdbc/current/mule-jdbc-ee.xsd">
 	<data-mapper:config name="list_map__to_list_map_"
 		transformationGraphPath="list_map__to_list_map_.grf" doc:name="list_map__to_list_map_" />
 	<batch:job name="db2db" max-failed-records="-1">
@@ -25,10 +27,12 @@ http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schem
 				doc:name="batch.db2db.start">
 				<tracking:meta-data key="time" value="#[new Date()]" />
 			</tracking:custom-event>
-			<db:select config-ref="MySQL_Configuration" doc:name="Get From DB1"
-				streaming="true">
-				<db:parameterized-query><![CDATA[select * from database1;]]></db:parameterized-query>
-			</db:select>
+
+			<jdbc-ee:outbound-endpoint
+				exchange-pattern="request-response" queryTimeout="-1" connector-ref="Database"
+				doc:name="Database" queryKey="selectFromDB1">
+				<jdbc-ee:query key="selectFromDB1" value="select * from database1;" />
+			</jdbc-ee:outbound-endpoint>
 			<data-mapper:transform config-ref="list_map__to_list_map_"
 				doc:name="List&lt;Map&gt; To List&lt;Map&gt;" stream="true" />
 		</batch:input>
@@ -36,29 +40,39 @@ http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schem
 			<batch:step name="database2.insert">
 				<batch:set-record-variable variableName="recordId"
 					value="#[payload.id]" doc:name="Store Record Id" />
-				
-					<batch:commit size="10" doc:name="Batch Commit">
+
+				<batch:commit size="100" doc:name="Batch Commit">
 					<transactional action="BEGIN_OR_JOIN" doc:name="Transactional">
-						<db:insert config-ref="MySQL_Configuration" doc:name="Insert to DB2"
-							bulkMode="true">
-							<db:parameterized-query><![CDATA[insert into database2 values(#[payload.id], #[payload.status])]]></db:parameterized-query>
-						</db:insert>
-						</transactional>
-					</batch:commit>
-				
+						<jdbc-ee:outbound-endpoint
+							exchange-pattern="request-response" queryTimeout="-1"
+							connector-ref="Database" doc:name="Database" queryKey="insertToDB2">
+							<jdbc-ee:query key="insertToDB2"
+								value="insert into database2 values(#[payload.id], #[payload.status]);" />
+						</jdbc-ee:outbound-endpoint>
+
+					</transactional>
+				</batch:commit>
+
 
 			</batch:step>
 			<batch:step name="database2.update.sucess">
 
-				<db:update config-ref="MySQL_Configuration" doc:name="Update Status to C">
-					<db:parameterized-query><![CDATA[update database2 set status='C' where id=#[recordVars['recordId']]]]></db:parameterized-query>
-				</db:update>
-
+				<batch:commit size="100" doc:name="Batch Commit">
+					<jdbc-ee:outbound-endpoint
+						exchange-pattern="request-response" queryTimeout="-1"
+						connector-ref="Database" doc:name="Database" queryKey="updateStatusInDB2">
+						<jdbc-ee:query key="updateStatusInDB2"
+							value="update database2 set status='C' where id=#[recordVars['recordId']];" />
+					</jdbc-ee:outbound-endpoint>
+				</batch:commit>
 			</batch:step>
 			<batch:step name="database2.update.failure" accept-policy="ONLY_FAILURES">
-				<db:update config-ref="MySQL_Configuration" doc:name="Update Status to E">
-					<db:parameterized-query><![CDATA[update database2 set status='E' where id=#[recordVars['recordId']]]]></db:parameterized-query>
-				</db:update>
+				<jdbc-ee:outbound-endpoint
+					exchange-pattern="request-response" queryTimeout="-1"
+					connector-ref="Database" doc:name="Database" queryKey="updateStatusInDB2Error">
+					<jdbc-ee:query key="updateStatusInDB2Error"
+						value="update database2 set status='E' where id=#[recordVars['recordId']];" />
+				</jdbc-ee:outbound-endpoint>
 
 			</batch:step>
 		</batch:process-records>

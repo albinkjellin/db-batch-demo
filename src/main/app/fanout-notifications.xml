@@ -9,10 +9,11 @@ http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amq
             <logger message="********** Log All Fanout: Number 2 **********" level="INFO" doc:name="Logger"/>
             <processor-chain>
                 <logger message="********** Log All Fanout: Number 3 **********" level="INFO" doc:name="Logger"/>
-                <amqp:outbound-endpoint exchangeName="notify" exchangeDurable="true" responseTimeout="10000" exchange-pattern="one-way" doc:name="AMQP"/>
+                <!-- <amqp:outbound-endpoint exchangeName="notify" exchangeDurable="true" responseTimeout="10000" exchange-pattern="one-way" doc:name="AMQP"/> -->
             </processor-chain>
         </all>
     </flow>
+    <!-- 
     <flow name="amqp.notify.1" doc:name="amqp.notify.1">
         <amqp:inbound-endpoint responseTimeout="10000" exchange-pattern="one-way" queueName="notify.1" doc:name="AMQP"/>
         <logger message="++++++++++ Log AMQP Fanout: Number 1 ++++++++++" level="INFO" doc:name="Logger"/>
@@ -25,4 +26,5 @@ http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amq
         <amqp:inbound-endpoint responseTimeout="10000" exchange-pattern="one-way" queueName="notify.3" doc:name="AMQP"/>
         <logger message="++++++++++ Log AMQP Fanout: Number 3 ++++++++++" level="INFO" doc:name="Logger"/>
     </flow>
+     -->
 </mule>
