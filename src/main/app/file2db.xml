@@ -15,27 +15,31 @@ http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schem
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
 http://www.mulesoft.org/schema/mule/ee/jdbc http://www.mulesoft.org/schema/mule/ee/jdbc/current/mule-jdbc-ee.xsd">
-	<data-mapper:config name="csv_to_map"
-		transformationGraphPath="csv_to_map.grf" doc:name="csv_to_map" />
+    <data-mapper:config name="csv_to_map" transformationGraphPath="csv_to_map.grf" doc:name="csv_to_map"/>
 	<batch:job name="file2db" max-failed-records="-1">
+        <batch:threading-profile poolExhaustedAction="WAIT"/>
 		<batch:input>
 			<file:inbound-endpoint
-				path="/Users/albin/dev/iapps/studio/3.5.0-dec/db-batch-demo/src/test/resources/csv/in"
+				path="/Users/albin/dev/iapps/studio/anypoint_ea/db-batch-demo/src/test/resources/csv/in"
 				responseTimeout="10000" doc:name="File" />
 			<tracking:custom-event event-name="batch.file2db.start"
 				doc:name="batch.file2db.start">
 				<tracking:meta-data key="time" value="#[new Date()]" />
 			</tracking:custom-event>
-
-			<data-mapper:transform config-ref="csv_to_map"
-				doc:name="CSV To Map" />
+            <data-mapper:transform config-ref="csv_to_map" doc:name="CSV To Map"/>
 		</batch:input>
 		<batch:process-records>
 			<batch:step name="db.insert">
                 <batch:commit size="100" doc:name="Batch Commit">
-                    <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryKey="insertFromFile" queryTimeout="-1" connector-ref="Database" doc:name="Database">
+                    <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+                    <db:insert config-ref="Database" doc:name="Database" bulkMode="true">
+                        <db:parameterized-query><![CDATA[insert into database1 (id,status) values(#[payload.id], #[payload.status]);]]></db:parameterized-query>
+                    </db:insert>
+                    <!-- 
+                    <jdbc-ee:outbound-endpoint exchange-pattern="request-response" queryKey="insertFromFile" queryTimeout="-1"  doc:name="Database">
                         <jdbc-ee:query key="insertFromFile" value="insert into database1 (id,status) values(#[payload.id], #[payload.status]);"/>
                     </jdbc-ee:outbound-endpoint>
+                     -->
                 </batch:commit>
 				
 			</batch:step>
